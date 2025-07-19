@@ -23,7 +23,7 @@ def upload_file():
             filepath = os.path.join(UPLOAD_FOLDER, filename)
             file.save(filepath)
             try:
-                xl = pd.read_excel(filepath, sheet_name=None)
+                xl = pd.read_excel(filepath, sheet_name=None, header=None)
                 required_sheets = {'Transactions', 'Customers', 'Products'}
                 if not required_sheets.issubset(xl.keys()):
                     flash('File must contain Transactions, Customers, and Products sheets.')
@@ -33,29 +33,34 @@ def upload_file():
                 customers_raw = xl['Customers']
                 products = xl['Products']
 
-                # Update: use sample string-based rows with {} braces and extract content
-                col_name = customers_raw.columns[0]
-                cleaned = customers_raw[col_name].astype(str).str.extract(r'\{(.+?)\}')[0]
-                parsed = cleaned.str.extract(
-                    r'(?P<CustomerID>C\d+)\|(?P<Name>[^|]+)\|(?P<Email>[^|]+@[^|]+\.[^|]+)\|(?P<DOB>\d{4}-\d{2}-\d{2})\|(?P<Address>[^|]+)\|(?P<CreatedDate>\d+\.\d+)'
-                )
+                # Process Customers sheet
+                converted_lines = []
+                for raw_line in customers_raw.iloc[1:, 0]:
+                    try:
+                        line = str(raw_line).strip()
+                        if line.startswith("{") and line.endswith("}"):
+                            content = line[1:-1]
+                            parts = content.split("_", 5)
+                            if len(parts) == 6:
+                                converted = "|".join(parts)
+                                converted_lines.append(converted.split('|'))
+                    except Exception as e:
+                        print(f"Error processing line: {raw_line} - {e}")
 
-                if parsed.isnull().any().any():
-                    flash('Customer data format incorrect. Check delimiter and fields.')
-                    return redirect('/')
+                customers = pd.DataFrame(converted_lines, columns=['customer_id', 'name', 'email', 'dob', 'address', 'created_date'])
 
-                # Convert CreatedDate from Excel float to date
-                parsed['CreatedDate'] = pd.to_datetime(parsed['CreatedDate'].astype(float), unit='d', origin='1899-12-30').dt.strftime('%Y-%m-%d')
-
-                customers = parsed
-
-                # Total transaction per customer per product category
-                transactions.columns = transactions.columns.str.lower()
-                products.columns = products.columns.str.lower()
+                # Normalize and merge
+                transactions.columns = transactions.iloc[0].str.lower()
+                transactions = transactions.iloc[1:]
+                products.columns = products.iloc[0].str.lower()
+                products = products.iloc[1:]
                 customers.columns = customers.columns.str.lower()
 
-                merged = transactions.merge(products, left_on='product_code', right_on='product_code')
-                merged = merged.merge(customers, left_on='customer_id', right_on='customerid')
+                merged = transactions.merge(products, on='product_code')
+                merged = merged.merge(customers, left_on='customer_id', right_on='customer_id')
+                merged['amount'] = pd.to_numeric(merged['amount'], errors='coerce')
+
+                # Total transaction per customer per category
                 category_totals = merged.groupby(['customer_id', 'category'])['amount'].sum().reset_index()
 
                 # Top spender per category
@@ -67,9 +72,9 @@ def upload_file():
                 customer_ranking = customer_ranking.sort_values(by='rank')
 
                 return render_template('results.html',
-                                       category_totals=category_totals.to_dict(orient='records'),
-                                       top_spenders=top_spenders.to_dict(orient='records'),
-                                       customer_ranking=customer_ranking.to_dict(orient='records'))
+                    category_totals=category_totals.to_dict(orient='records'),
+                    top_spenders=top_spenders.to_dict(orient='records'),
+                    customer_ranking=customer_ranking.to_dict(orient='records'))
 
             except Exception as e:
                 flash(f'Error processing file: {e}')
