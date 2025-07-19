@@ -1,0 +1,39 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Processing Results</title>
+</head>
+<body>
+    <h1>Data Processing Results</h1>
+
+    <h2>Address History</h2>
+    <ul>
+        {% for item in address_history %}
+        <li><strong>{{ item.CustomerID }}:</strong> {{ item.AddressHistory }}</li>
+        {% endfor %}
+    </ul>
+
+    <h2>Category Totals</h2>
+    <ul>
+        {% for item in category_totals %}
+        <li>Customer {{ item.customer_id }} - {{ item.category }}: ${{ item.amount }}</li>
+        {% endfor %}
+    </ul>
+
+    <h2>Top Spenders by Category</h2>
+    <ul>
+        {% for item in top_spenders %}
+        <li>Category: {{ item.category }}, Top Customer: {{ item.customer_id }}, Amount: ${{ item.amount }}</li>
+        {% endfor %}
+    </ul>
+
+    <h2>Customer Rankings</h2>
+    <ol>
+        {% for item in customer_ranking %}
+        <li>Customer {{ item.customer_id }} - ${{ item.amount }} (Rank {{ item.rank }})</li>
+        {% endfor %}
+    </ol>
+</body>
+</html>
