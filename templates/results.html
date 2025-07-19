@@ -1,39 +1,136 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <title>Processing Results</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            background-color: #f9f9f9;
+            color: #333;
+        }
+
+        h1, h2 {
+            color: #2c3e50;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-bottom: 40px;
+            background: #fff;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+        }
+
+        th, td {
+            padding: 12px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+
+        th {
+            background-color: #3498db;
+            color: white;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f2f6fa;
+        }
+
+        tr:hover {
+            background-color: #d1e7fd;
+        }
+    </style>
 </head>
 <body>
     <h1>Data Processing Results</h1>
 
-    <h2>Address History</h2>
-    <ul>
-        {% for item in address_history %}
-        <li><strong>{{ item.CustomerID }}:</strong> {{ item.AddressHistory }}</li>
-        {% endfor %}
-    </ul>
-
     <h2>Category Totals</h2>
-    <ul>
-        {% for item in category_totals %}
-        <li>Customer {{ item.customer_id }} - {{ item.category }}: ${{ item.amount }}</li>
-        {% endfor %}
-    </ul>
+    <table>
+        <thead>
+            <tr>
+                <th>Customer ID</th>
+                <th>Customer Name</th>
+                <th>Category</th>
+                <th>Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in category_totals %}
+            <tr>
+                <td>{{ item.customer_id }}</td>
+                <td>{{ item.name }}</td>
+                <td>{{ item.category }}</td>
+                <td>${{ item.amount }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 
     <h2>Top Spenders by Category</h2>
-    <ul>
-        {% for item in top_spenders %}
-        <li>Category: {{ item.category }}, Top Customer: {{ item.customer_id }}, Amount: ${{ item.amount }}</li>
-        {% endfor %}
-    </ul>
+    <table>
+        <thead>
+            <tr>
+                <th>Category</th>
+                <th>Top Customer</th>
+                <th>Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in top_spenders %}
+            <tr>
+                <td>{{ item.category }}</td>
+                <td>{{ item.customer_id }}</td>
+                <td>${{ item.amount }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 
     <h2>Customer Rankings</h2>
-    <ol>
-        {% for item in customer_ranking %}
-        <li>Customer {{ item.customer_id }} - ${{ item.amount }} (Rank {{ item.rank }})</li>
+    <table>
+      <thead>
+        <tr>
+          <th>Rank</th>
+          <th>Customer ID</th>
+          <th>Name</th>
+          <th>Total Amount</th>
+          <th>Details</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for customer in customer_ranking %}
+        <tr>
+          <td>{{ customer.rank }}</td>
+          <td>{{ customer.customer_id }}</td>
+          <td>{{ customer.name }}</td>
+          <td>${{ customer.amount }}</td>
+          <td><span class="expand-button" onclick="toggleDetails('details-{{ customer.customer_id }}')">Show/Hide</span></td>
+        </tr>
+        <tr id="details-{{ customer.customer_id }}" class="subcategory">
+          <td colspan="5">
+            <table>
+              <thead>
+                <tr>
+                  <th>Category</th>
+                  <th>Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in category_totals_grouped.get(customer.customer_id, []) %}
+                <tr>
+                  <td>{{ row.category }}</td>
+                  <td>${{ row.amount }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </td>
+        </tr>
         {% endfor %}
-    </ol>
+      </tbody>
+    </table>
+
 </body>
 </html>

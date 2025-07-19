@@ -65,18 +65,26 @@ def upload_file():
                 merged['amount'] = pd.to_numeric(merged['amount'], errors='coerce')
 
                 # Total transaction per customer per category
-                category_totals = merged.groupby(['customer_id', 'category'])['amount'].sum().reset_index()
+                category_totals = merged.groupby(['customer_id', 'name', 'category'])['amount'].sum().reset_index()
 
                 # Top spender per category
                 top_spenders = category_totals.loc[category_totals.groupby('category')['amount'].idxmax()].reset_index(drop=True)
 
                 # Ranking customers
-                customer_ranking = merged.groupby('customer_id')['amount'].sum().reset_index()
+                # Add name by taking first occurrence per customer
+                customer_ranking = merged.groupby('customer_id').agg({
+                    'amount': 'sum',
+                    'name': 'first'
+                }).reset_index()
+
                 customer_ranking['rank'] = customer_ranking['amount'].rank(method='dense', ascending=False).astype(int)
                 customer_ranking = customer_ranking.sort_values(by='rank')
 
+                # Convert category totals into a dict grouped by customer_id
+                category_totals_grouped = category_totals.groupby('customer_id').apply(lambda df: df.to_dict(orient='records')).to_dict()
+
                 return render_template('results.html',
-                    category_totals=category_totals.to_dict(orient='records'),
+                    category_totals_grouped=category_totals_grouped,
                     top_spenders=top_spenders.to_dict(orient='records'),
                     customer_ranking=customer_ranking.to_dict(orient='records'))
 
