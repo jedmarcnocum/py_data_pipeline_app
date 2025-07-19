@@ -11,6 +11,7 @@ ALLOWED_EXTENSIONS = {'xlsx'}
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(PROCESSED_FOLDER, exist_ok=True)
 
+# This function checks if the uploaded file has a valid Excel extension (e.g., .xlsx)
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
@@ -35,6 +36,7 @@ def upload_file():
 
                 # Process Customers sheet
                 converted_lines = []
+                # Skips the header (row 0) and processes customer data from the first column
                 for raw_line in customers_raw.iloc[1:, 0]:
                     try:
                         line = str(raw_line).strip()
@@ -47,6 +49,7 @@ def upload_file():
                     except Exception as e:
                         print(f"Error processing line: {raw_line} - {e}")
 
+                # Convert the cleaned list of customer data into a DataFrame with named columns
                 customers = pd.DataFrame(converted_lines, columns=['customer_id', 'name', 'email', 'dob', 'address', 'created_date'])
 
                 # Normalize and merge
@@ -56,6 +59,7 @@ def upload_file():
                 products = products.iloc[1:]
                 customers.columns = customers.columns.str.lower()
 
+                # Extract and standardize column headers for transactions and products
                 merged = transactions.merge(products, on='product_code')
                 merged = merged.merge(customers, left_on='customer_id', right_on='customer_id')
                 merged['amount'] = pd.to_numeric(merged['amount'], errors='coerce')
