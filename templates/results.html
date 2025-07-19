@@ -41,28 +41,73 @@
         tr:hover {
             background-color: #d1e7fd;
         }
+
+        .expand-button {
+            cursor: pointer;
+            color: #3498db;
+            text-decoration: underline;
+        }
+
+        .subcategory {
+            display: none;
+            background-color: #eef6fc;
+        }
     </style>
+    <script>
+        function toggleDetails(id) {
+            const row = document.getElementById(id);
+            if (row.style.display === 'none' || row.style.display === '') {
+                row.style.display = 'table-row';
+            } else {
+                row.style.display = 'none';
+            }
+        }
+    </script>
 </head>
 <body>
     <h1>Data Processing Results</h1>
 
-    <h2>Category Totals</h2>
+    <h2>Customer Category Totals (Summary)</h2>
     <table>
         <thead>
             <tr>
+                <th>Rank</th>
                 <th>Customer ID</th>
-                <th>Customer Name</th>
-                <th>Category</th>
-                <th>Amount</th>
+                <th>Name</th>
+                <th>Total Amount</th>
+                <th>Details</th>
             </tr>
         </thead>
         <tbody>
-            {% for item in category_totals %}
+            {% for customer in category_totals %}
             <tr>
-                <td>{{ item.customer_id }}</td>
-                <td>{{ item.name }}</td>
-                <td>{{ item.category }}</td>
-                <td>${{ item.amount }}</td>
+                <td>{{ customer.rank }}</td>
+                <td>{{ customer.customer_id }}</td>
+                <td>{{ customer.name }}</td>
+                <td>${{ customer.amount }}</td>
+                <td>
+                    <span class="expand-button" onclick="toggleDetails('cat-details-{{ customer.customer_id }}')">Show/Hide</span>
+                </td>
+            </tr>
+            <tr id="cat-details-{{ customer.customer_id }}" class="subcategory">
+                <td colspan="5">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Category</th>
+                                <th>Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in category_totals_grouped.get(customer.customer_id, []) %}
+                            <tr>
+                                <td>{{ row.category }}</td>
+                                <td>${{ row.amount }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </td>
             </tr>
             {% endfor %}
         </tbody>
@@ -90,47 +135,48 @@
 
     <h2>Customer Rankings</h2>
     <table>
-      <thead>
-        <tr>
-          <th>Rank</th>
-          <th>Customer ID</th>
-          <th>Name</th>
-          <th>Total Amount</th>
-          <th>Details</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for customer in customer_ranking %}
-        <tr>
-          <td>{{ customer.rank }}</td>
-          <td>{{ customer.customer_id }}</td>
-          <td>{{ customer.name }}</td>
-          <td>${{ customer.amount }}</td>
-          <td><span class="expand-button" onclick="toggleDetails('details-{{ customer.customer_id }}')">Show/Hide</span></td>
-        </tr>
-        <tr id="details-{{ customer.customer_id }}" class="subcategory">
-          <td colspan="5">
-            <table>
-              <thead>
-                <tr>
-                  <th>Category</th>
-                  <th>Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for row in category_totals_grouped.get(customer.customer_id, []) %}
-                <tr>
-                  <td>{{ row.category }}</td>
-                  <td>${{ row.amount }}</td>
-                </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
+        <thead>
+            <tr>
+                <th>Rank</th>
+                <th>Customer ID</th>
+                <th>Name</th>
+                <th>Total Amount</th>
+                <th>Details</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for customer in customer_ranking %}
+            <tr>
+                <td>{{ customer.rank }}</td>
+                <td>{{ customer.customer_id }}</td>
+                <td>{{ customer.name }}</td>
+                <td>${{ customer.amount }}</td>
+                <td>
+                    <span class="expand-button" onclick="toggleDetails('rank-details-{{ customer.customer_id }}')">Show/Hide</span>
+                </td>
+            </tr>
+            <tr id="rank-details-{{ customer.customer_id }}" class="subcategory">
+                <td colspan="5">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Category</th>
+                                <th>Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in category_totals_grouped.get(customer.customer_id, []) %}
+                            <tr>
+                                <td>{{ row.category }}</td>
+                                <td>${{ row.amount }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
     </table>
-
 </body>
 </html>
