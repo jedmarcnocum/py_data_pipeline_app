@@ -59,11 +59,17 @@
         <tbody>
             {% for upload in uploads %}
             <tr>
+                <!-- ID -->
                 <td>{{ upload[0] }}</td>
+                <!-- Filename -->
                 <td>{{ upload[1] }}</td>
+                <!-- Timestamp -->
                 <td>{{ upload[2] }}</td>
+                <!-- Transactions -->
                 <td>{{ upload[3] }}</td>
+                <!-- Customers -->
                 <td>{{ upload[4] }}</td>
+                <!-- Products -->
                 <td>{{ upload[5] }}</td>
             </tr>
             {% endfor %}

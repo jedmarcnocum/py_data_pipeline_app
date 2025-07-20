@@ -51,7 +51,7 @@ cursor.execute('''
 ''')
 conn.commit()
 
-# This function checks if the uploaded file has a valid Excel extension (e.g., .xlsx)
+# Check if the file is an allowed Excel file
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
@@ -74,7 +74,7 @@ def upload_file():
                 customers_raw = xl['Customers']
                 products = xl['Products']
 
-                # Log metadata about upload
+                # Log upload metadata
                 timestamp = datetime.now().isoformat()
                 cursor.execute('''
                     INSERT INTO uploads (filename, timestamp, transactions_rows, customers_rows, products_rows)
@@ -106,11 +106,10 @@ def upload_file():
                 customers = pd.DataFrame(converted_lines, columns=['customer_id', 'name', 'email', 'dob', 'address', 'created_date'])
                 customers.columns = customers.columns.str.lower()
 
-                # Save customers to DB and check for address changes
+                # Save customers to DB and track address changes
                 for _, row in customers.iterrows():
                     existing = cursor.execute('SELECT address FROM customers WHERE customer_id = ?', (row['customer_id'],)).fetchone()
                     if existing and existing[0] != row['address']:
-                        print(f"Address change for {row['customer_id']}: {existing[0]} -> {row['address']}")
                         cursor.execute('''
                             INSERT INTO address_changes (customer_id, old_address, new_address, change_timestamp, upload_id)
                             VALUES (?, ?, ?, ?, ?)
@@ -123,39 +122,30 @@ def upload_file():
                     ))
                 conn.commit()
 
-                # Normalize and merge
+                # Normalize and merge data
                 transactions.columns = transactions.iloc[0].str.lower()
                 transactions = transactions.iloc[1:]
                 products.columns = products.iloc[0].str.lower()
                 products = products.iloc[1:]
 
                 merged = transactions.merge(products, on='product_code')
-                merged = merged.merge(customers, left_on='customer_id', right_on='customer_id')
+                merged = merged.merge(customers, on='customer_id')
                 merged['amount'] = pd.to_numeric(merged['amount'], errors='coerce')
 
                 # Total transaction per customer per category
                 category_totals = merged.groupby(['customer_id', 'name', 'category'])['amount'].sum().reset_index()
 
-                # Summarize category_totals to match customer ranking
+                # Summary for ranking
                 category_totals_summary = category_totals.groupby(['customer_id', 'name'])['amount'].sum().reset_index()
                 category_totals_summary['amount'] = category_totals_summary['amount'].round(2)
                 category_totals_summary['rank'] = category_totals_summary['amount'].rank(method='dense', ascending=False).astype(int)
                 category_totals_summary = category_totals_summary.sort_values(by='rank')
 
-                # Top spender per category
+                # Top spenders per category
                 top_spenders = category_totals.loc[category_totals.groupby('category')['amount'].idxmax()].reset_index(drop=True)
                 top_spenders['amount'] = top_spenders['amount'].round(2)
 
-                # Ranking customers
-                customer_ranking = merged.groupby('customer_id').agg({
-                    'amount': 'sum',
-                    'name': 'first'
-                }).reset_index()
-                customer_ranking['amount'] = customer_ranking['amount'].round(2)
-                customer_ranking['rank'] = customer_ranking['amount'].rank(method='dense', ascending=False).astype(int)
-                customer_ranking = customer_ranking.sort_values(by='rank')
-
-                # Convert category totals into a dict grouped by customer_id
+                # Category detail dict per customer
                 category_totals_grouped = category_totals.copy()
                 category_totals_grouped['amount'] = category_totals_grouped['amount'].round(2)
                 category_totals_grouped = category_totals_grouped.groupby('customer_id').apply(lambda df: df.to_dict(orient='records')).to_dict()
@@ -163,7 +153,6 @@ def upload_file():
                 return render_template('results.html',
                     category_totals=category_totals_summary.to_dict(orient='records'),
                     top_spenders=top_spenders.to_dict(orient='records'),
-                    customer_ranking=customer_ranking.to_dict(orient='records'),
                     category_totals_grouped=category_totals_grouped,
                     upload_id=upload_id)
 
