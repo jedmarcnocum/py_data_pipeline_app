@@ -13,7 +13,7 @@ ALLOWED_EXTENSIONS = {'xlsx'}
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(PROCESSED_FOLDER, exist_ok=True)
 
-# Initialize SQLite database for logging uploads
+# Initialize SQLite database for logging uploads and customers
 conn = sqlite3.connect('upload_logs.db', check_same_thread=False)
 cursor = conn.cursor()
 cursor.execute('''
@@ -24,6 +24,18 @@ cursor.execute('''
         transactions_rows INTEGER,
         customers_rows INTEGER,
         products_rows INTEGER
+    )
+''')
+cursor.execute('''
+    CREATE TABLE IF NOT EXISTS customers (
+        customer_id TEXT PRIMARY KEY,
+        name TEXT,
+        email TEXT,
+        dob TEXT,
+        address TEXT,
+        created_date TEXT,
+        upload_id INTEGER,
+        FOREIGN KEY(upload_id) REFERENCES uploads(id)
     )
 ''')
 conn.commit()
@@ -59,15 +71,15 @@ def upload_file():
                 ''', (
                     filename,
                     timestamp,
-                    len(transactions) - 1,  # exclude header row
+                    len(transactions) - 1,
                     len(customers_raw) - 1,
                     len(products) - 1
                 ))
+                upload_id = cursor.lastrowid
                 conn.commit()
 
                 # Process Customers sheet
                 converted_lines = []
-                # This loop skips the header (row 0) and processes customer data from the first column
                 for raw_line in customers_raw.iloc[1:, 0]:
                     try:
                         line = str(raw_line).strip()
@@ -80,17 +92,25 @@ def upload_file():
                     except Exception as e:
                         print(f"Error processing line: {raw_line} - {e}")
 
-                # Convert the cleaned list of customer data into a DataFrame with named columns
                 customers = pd.DataFrame(converted_lines, columns=['customer_id', 'name', 'email', 'dob', 'address', 'created_date'])
+                customers.columns = customers.columns.str.lower()
+
+                # Save customers to DB after normalization, avoid duplicates
+                for _, row in customers.iterrows():
+                    cursor.execute('''
+                        INSERT OR REPLACE INTO customers (customer_id, name, email, dob, address, created_date, upload_id)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    ''', (
+                        row['customer_id'], row['name'], row['email'], row['dob'], row['address'], row['created_date'], upload_id
+                    ))
+                conn.commit()
 
                 # Normalize and merge
                 transactions.columns = transactions.iloc[0].str.lower()
                 transactions = transactions.iloc[1:]
                 products.columns = products.iloc[0].str.lower()
                 products = products.iloc[1:]
-                customers.columns = customers.columns.str.lower()
 
-                # Extract and standardize column headers for transactions and products
                 merged = transactions.merge(products, on='product_code')
                 merged = merged.merge(customers, left_on='customer_id', right_on='customer_id')
                 merged['amount'] = pd.to_numeric(merged['amount'], errors='coerce')
