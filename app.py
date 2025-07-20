@@ -4,7 +4,7 @@ import sqlite3
 from datetime import datetime
 from flask import Flask, request, redirect, render_template, send_file, flash
 from werkzeug.utils import secure_filename
-import urllib.parse
+import io
 
 app = Flask(__name__)
 app.secret_key = 'supersecretkey'
@@ -52,7 +52,6 @@ cursor.execute('''
 ''')
 conn.commit()
 
-# Check if the file is an allowed Excel file
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
@@ -107,7 +106,7 @@ def upload_file():
                 customers = pd.DataFrame(converted_lines, columns=['customer_id', 'name', 'email', 'dob', 'address', 'created_date'])
                 customers.columns = customers.columns.str.lower()
 
-                # Save customers to DB and track address changes
+                # Save customers and check address changes
                 for _, row in customers.iterrows():
                     existing = cursor.execute('SELECT address FROM customers WHERE customer_id = ?', (row['customer_id'],)).fetchone()
                     if existing and existing[0] != row['address']:
@@ -122,7 +121,7 @@ def upload_file():
                         row['customer_id'], row['name'], row['email'], row['dob'], row['address'], row['created_date'], upload_id
                     ))
                 conn.commit()
-
+                
                 # Normalize and merge data
                 transactions.columns = transactions.iloc[0].str.lower()
                 transactions = transactions.iloc[1:]
@@ -134,17 +133,13 @@ def upload_file():
                 merged['amount'] = pd.to_numeric(merged['amount'], errors='coerce')
 
                 # Total transaction per customer per category
-                category_totals = merged.groupby(['customer_id', 'name', 'address', 'category'])['amount'].sum().reset_index()
+                category_totals = merged.groupby(['customer_id', 'name', 'category'])['amount'].sum().reset_index()
 
                 # Summary for ranking
-                category_totals_summary = category_totals.groupby(['customer_id', 'name', 'address'])['amount'].sum().reset_index()
+                category_totals_summary = category_totals.groupby(['customer_id', 'name'])['amount'].sum().reset_index()
                 category_totals_summary['amount'] = category_totals_summary['amount'].round(2)
                 category_totals_summary['rank'] = category_totals_summary['amount'].rank(method='dense', ascending=False).astype(int)
                 category_totals_summary = category_totals_summary.sort_values(by='rank')
-
-                # Add Google Maps link to the summary
-                category_totals_summary['map_url'] = category_totals_summary['address'].apply(
-                    lambda addr: f"https://www.google.com/maps/search/?api=1&query={urllib.parse.quote(addr)}")
 
                 # Top spenders per category
                 top_spenders = category_totals.loc[category_totals.groupby('category')['amount'].idxmax()].reset_index(drop=True)
@@ -155,11 +150,28 @@ def upload_file():
                 category_totals_grouped['amount'] = category_totals_grouped['amount'].round(2)
                 category_totals_grouped = category_totals_grouped.groupby('customer_id').apply(lambda df: df.to_dict(orient='records')).to_dict()
 
+                # Store processed data in session or globally (or pass to template)
+                # Here, save processed Excel file in memory for download
+                output = io.BytesIO()
+                with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                    category_totals_summary.to_excel(writer, index=False, sheet_name='CategoryTotalsSummary')
+                    top_spenders.to_excel(writer, index=False, sheet_name='TopSpenders')
+                    merged.to_excel(writer, index=False, sheet_name='MergedData')
+                output.seek(0)
+
+                # Save in session or temporarily store file and pass download token
+                # For simplicity, save file locally with unique name
+                processed_filename = f"processed_{upload_id}.xlsx"
+                processed_filepath = os.path.join(PROCESSED_FOLDER, processed_filename)
+                with open(processed_filepath, 'wb') as f:
+                    f.write(output.read())
+
                 return render_template('results.html',
                     category_totals=category_totals_summary.to_dict(orient='records'),
                     top_spenders=top_spenders.to_dict(orient='records'),
                     category_totals_grouped=category_totals_grouped,
-                    upload_id=upload_id)
+                    upload_id=upload_id,
+                    processed_file=processed_filename)
 
             except Exception as e:
                 flash(f'Error processing file: {e}')
@@ -168,6 +180,15 @@ def upload_file():
             flash('Invalid file type. Please upload an Excel file.')
             return redirect('/')
     return render_template('upload.html')
+
+@app.route('/download/<filename>')
+def download_file(filename):
+    path = os.path.join(PROCESSED_FOLDER, filename)
+    if os.path.exists(path):
+        return send_file(path, as_attachment=True)
+    else:
+        flash("File not found.")
+        return redirect('/')
 
 @app.route('/uploads')
 def view_uploads():
