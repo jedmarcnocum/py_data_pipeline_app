@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Address Change History</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            background-color: #f9f9f9;
+            color: #333;
+        }
+
+        h1 {
+            color: #2c3e50;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-bottom: 40px;
+            background: #fff;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+        }
+
+        th, td {
+            padding: 12px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+
+        th {
+            background-color: #3498db;
+            color: white;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f2f6fa;
+        }
+
+        tr:hover {
+            background-color: #d1e7fd;
+        }
+    </style>
+</head>
+<body>
+    <h1>Address Change History</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Change ID</th>
+                <th>Customer ID</th>
+                <th>Old Address</th>
+                <th>New Address</th>
+                <th>Timestamp</th>
+                <th>Upload ID</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for change in changes %}
+            <tr>
+                <td>{{ change[0] }}</td>
+                <td>{{ change[1] }}</td>
+                <td>{{ change[2] }}</td>
+                <td>{{ change[3] }}</td>
+                <td>{{ change[4] }}</td>
+                <td>{{ change[5] }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

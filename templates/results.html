@@ -67,7 +67,7 @@
 <body>
     <h1>Data Processing Results</h1>
 
-    <h2>Customer Category Totals (Summary)</h2>
+    <h2>Customer ranking by total transaction amount</h2>
     <table>
         <thead>
             <tr>
@@ -126,57 +126,16 @@
             {% for item in top_spenders %}
             <tr>
                 <td>{{ item.category }}</td>
-                <td>{{ item.customer_id }}</td>
+                <td>{{ item.name }}</td>
                 <td>${{ item.amount }}</td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
 
-    <h2>Customer Rankings</h2>
-    <table>
-        <thead>
-            <tr>
-                <th>Rank</th>
-                <th>Customer ID</th>
-                <th>Name</th>
-                <th>Total Amount</th>
-                <th>Details</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for customer in customer_ranking %}
-            <tr>
-                <td>{{ customer.rank }}</td>
-                <td>{{ customer.customer_id }}</td>
-                <td>{{ customer.name }}</td>
-                <td>${{ customer.amount }}</td>
-                <td>
-                    <span class="expand-button" onclick="toggleDetails('rank-details-{{ customer.customer_id }}')">Show/Hide</span>
-                </td>
-            </tr>
-            <tr id="rank-details-{{ customer.customer_id }}" class="subcategory">
-                <td colspan="5">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Category</th>
-                                <th>Amount</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for row in category_totals_grouped.get(customer.customer_id, []) %}
-                            <tr>
-                                <td>{{ row.category }}</td>
-                                <td>${{ row.amount }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <div class="nav-links">
+        <a href="/uploads">View Upload History</a> |
+        <a href="/address-changes">View Address Changes</a>
+    </div>
 </body>
 </html>

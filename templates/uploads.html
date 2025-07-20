@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Upload History</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            background-color: #f9f9f9;
+            color: #333;
+        }
+
+        h1 {
+            color: #2c3e50;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-bottom: 40px;
+            background: #fff;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+        }
+
+        th, td {
+            padding: 12px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+
+        th {
+            background-color: #3498db;
+            color: white;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f2f6fa;
+        }
+
+        tr:hover {
+            background-color: #d1e7fd;
+        }
+    </style>
+</head>
+<body>
+    <h1>Upload History</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Filename</th>
+                <th>Timestamp</th>
+                <th>Transactions</th>
+                <th>Customers</th>
+                <th>Products</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for upload in uploads %}
+            <tr>
+                <!-- ID -->
+                <td>{{ upload[0] }}</td>
+                <!-- Filename -->
+                <td>{{ upload[1] }}</td>
+                <!-- Timestamp -->
+                <td>{{ upload[2] }}</td>
+                <!-- Transactions -->
+                <td>{{ upload[3] }}</td>
+                <!-- Customers -->
+                <td>{{ upload[4] }}</td>
+                <!-- Products -->
+                <td>{{ upload[5] }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>
