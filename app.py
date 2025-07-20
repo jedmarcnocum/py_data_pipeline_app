@@ -4,6 +4,7 @@ import sqlite3
 from datetime import datetime
 from flask import Flask, request, redirect, render_template, send_file, flash
 from werkzeug.utils import secure_filename
+import urllib.parse
 
 app = Flask(__name__)
 app.secret_key = 'supersecretkey'
@@ -133,13 +134,17 @@ def upload_file():
                 merged['amount'] = pd.to_numeric(merged['amount'], errors='coerce')
 
                 # Total transaction per customer per category
-                category_totals = merged.groupby(['customer_id', 'name', 'category'])['amount'].sum().reset_index()
+                category_totals = merged.groupby(['customer_id', 'name', 'address', 'category'])['amount'].sum().reset_index()
 
                 # Summary for ranking
-                category_totals_summary = category_totals.groupby(['customer_id', 'name'])['amount'].sum().reset_index()
+                category_totals_summary = category_totals.groupby(['customer_id', 'name', 'address'])['amount'].sum().reset_index()
                 category_totals_summary['amount'] = category_totals_summary['amount'].round(2)
                 category_totals_summary['rank'] = category_totals_summary['amount'].rank(method='dense', ascending=False).astype(int)
                 category_totals_summary = category_totals_summary.sort_values(by='rank')
+
+                # Add Google Maps link to the summary
+                category_totals_summary['map_url'] = category_totals_summary['address'].apply(
+                    lambda addr: f"https://www.google.com/maps/search/?api=1&query={urllib.parse.quote(addr)}")
 
                 # Top spenders per category
                 top_spenders = category_totals.loc[category_totals.groupby('category')['amount'].idxmax()].reset_index(drop=True)
