@@ -74,6 +74,7 @@
                 <th>Rank</th>
                 <th>Customer ID</th>
                 <th>Name</th>
+                <th>Address</th>
                 <th>Total Amount</th>
                 <th>Details</th>
             </tr>
@@ -84,6 +85,7 @@
                 <td>{{ customer.rank }}</td>
                 <td>{{ customer.customer_id }}</td>
                 <td>{{ customer.name }}</td>
+                <td><a href="{{ customer.map_url }}" target="_blank">{{ customer.address }}</a></td>
                 <td>${{ customer.amount }}</td>
                 <td>
                     <span class="expand-button" onclick="toggleDetails('cat-details-{{ customer.customer_id }}')">Show/Hide</span>
