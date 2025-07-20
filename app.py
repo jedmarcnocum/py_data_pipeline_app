@@ -38,6 +38,17 @@ cursor.execute('''
         FOREIGN KEY(upload_id) REFERENCES uploads(id)
     )
 ''')
+cursor.execute('''
+    CREATE TABLE IF NOT EXISTS address_changes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        customer_id TEXT,
+        old_address TEXT,
+        new_address TEXT,
+        change_timestamp TEXT,
+        upload_id INTEGER,
+        FOREIGN KEY(upload_id) REFERENCES uploads(id)
+    )
+''')
 conn.commit()
 
 # This function checks if the uploaded file has a valid Excel extension (e.g., .xlsx)
@@ -95,8 +106,15 @@ def upload_file():
                 customers = pd.DataFrame(converted_lines, columns=['customer_id', 'name', 'email', 'dob', 'address', 'created_date'])
                 customers.columns = customers.columns.str.lower()
 
-                # Save customers to DB after normalization, avoid duplicates
+                # Save customers to DB and check for address changes
                 for _, row in customers.iterrows():
+                    existing = cursor.execute('SELECT address FROM customers WHERE customer_id = ?', (row['customer_id'],)).fetchone()
+                    if existing and existing[0] != row['address']:
+                        print(f"Address change for {row['customer_id']}: {existing[0]} -> {row['address']}")
+                        cursor.execute('''
+                            INSERT INTO address_changes (customer_id, old_address, new_address, change_timestamp, upload_id)
+                            VALUES (?, ?, ?, ?, ?)
+                        ''', (row['customer_id'], existing[0], row['address'], timestamp, upload_id))
                     cursor.execute('''
                         INSERT OR REPLACE INTO customers (customer_id, name, email, dob, address, created_date, upload_id)
                         VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -146,7 +164,8 @@ def upload_file():
                     category_totals=category_totals_summary.to_dict(orient='records'),
                     top_spenders=top_spenders.to_dict(orient='records'),
                     customer_ranking=customer_ranking.to_dict(orient='records'),
-                    category_totals_grouped=category_totals_grouped)
+                    category_totals_grouped=category_totals_grouped,
+                    upload_id=upload_id)
 
             except Exception as e:
                 flash(f'Error processing file: {e}')
@@ -155,6 +174,18 @@ def upload_file():
             flash('Invalid file type. Please upload an Excel file.')
             return redirect('/')
     return render_template('upload.html')
+
+@app.route('/uploads')
+def view_uploads():
+    cursor.execute('SELECT * FROM uploads ORDER BY timestamp DESC')
+    uploads = cursor.fetchall()
+    return render_template('uploads.html', uploads=uploads)
+
+@app.route('/address-changes')
+def view_address_changes():
+    cursor.execute('SELECT * FROM address_changes ORDER BY change_timestamp DESC')
+    changes = cursor.fetchall()
+    return render_template('address_changes.html', changes=changes)
 
 if __name__ == '__main__':
     app.run(debug=True)
