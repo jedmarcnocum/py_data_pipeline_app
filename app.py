@@ -1,5 +1,7 @@
 import os
 import pandas as pd
+import sqlite3
+from datetime import datetime
 from flask import Flask, request, redirect, render_template, send_file, flash
 from werkzeug.utils import secure_filename
 
@@ -10,6 +12,21 @@ PROCESSED_FOLDER = 'processed'
 ALLOWED_EXTENSIONS = {'xlsx'}
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(PROCESSED_FOLDER, exist_ok=True)
+
+# Initialize SQLite database for logging uploads
+conn = sqlite3.connect('upload_logs.db', check_same_thread=False)
+cursor = conn.cursor()
+cursor.execute('''
+    CREATE TABLE IF NOT EXISTS uploads (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        filename TEXT,
+        timestamp TEXT,
+        transactions_rows INTEGER,
+        customers_rows INTEGER,
+        products_rows INTEGER
+    )
+''')
+conn.commit()
 
 # This function checks if the uploaded file has a valid Excel extension (e.g., .xlsx)
 def allowed_file(filename):
@@ -33,6 +50,20 @@ def upload_file():
                 transactions = xl['Transactions']
                 customers_raw = xl['Customers']
                 products = xl['Products']
+
+                # Log metadata about upload
+                timestamp = datetime.now().isoformat()
+                cursor.execute('''
+                    INSERT INTO uploads (filename, timestamp, transactions_rows, customers_rows, products_rows)
+                    VALUES (?, ?, ?, ?, ?)
+                ''', (
+                    filename,
+                    timestamp,
+                    len(transactions) - 1,  # exclude header row
+                    len(customers_raw) - 1,
+                    len(products) - 1
+                ))
+                conn.commit()
 
                 # Process Customers sheet
                 converted_lines = []
@@ -69,22 +100,27 @@ def upload_file():
 
                 # Summarize category_totals to match customer ranking
                 category_totals_summary = category_totals.groupby(['customer_id', 'name'])['amount'].sum().reset_index()
+                category_totals_summary['amount'] = category_totals_summary['amount'].round(2)
                 category_totals_summary['rank'] = category_totals_summary['amount'].rank(method='dense', ascending=False).astype(int)
                 category_totals_summary = category_totals_summary.sort_values(by='rank')
 
                 # Top spender per category
                 top_spenders = category_totals.loc[category_totals.groupby('category')['amount'].idxmax()].reset_index(drop=True)
+                top_spenders['amount'] = top_spenders['amount'].round(2)
 
                 # Ranking customers
                 customer_ranking = merged.groupby('customer_id').agg({
                     'amount': 'sum',
                     'name': 'first'
                 }).reset_index()
+                customer_ranking['amount'] = customer_ranking['amount'].round(2)
                 customer_ranking['rank'] = customer_ranking['amount'].rank(method='dense', ascending=False).astype(int)
                 customer_ranking = customer_ranking.sort_values(by='rank')
 
                 # Convert category totals into a dict grouped by customer_id
-                category_totals_grouped = category_totals.groupby('customer_id').apply(lambda df: df.to_dict(orient='records')).to_dict()
+                category_totals_grouped = category_totals.copy()
+                category_totals_grouped['amount'] = category_totals_grouped['amount'].round(2)
+                category_totals_grouped = category_totals_grouped.groupby('customer_id').apply(lambda df: df.to_dict(orient='records')).to_dict()
 
                 return render_template('results.html',
                     category_totals=category_totals_summary.to_dict(orient='records'),
