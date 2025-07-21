@@ -1,6 +1,5 @@
 venv
 processed
-uploads
 *.zip
 *.rar
 *.db
