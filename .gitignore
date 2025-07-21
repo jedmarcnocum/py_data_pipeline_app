@@ -1,4 +1,5 @@
 venv
-uploads_log.db
 processed
-uploads
+*.zip
+*.rar
+*.db
